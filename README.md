@@ -103,4 +103,4 @@ Your exact structure may vary depending on the options selected when creating th
 
 The frontend and backend are maintained as separate repositories. Start each application independently during local development.
 
-The frontend handles presentation and user interaction. API requests, ingestion, embedding generation, retrieval, and answer generation are handled by the backend.
+The frontend handles presentation and user interaction. API requests, ingestion, embedding generation, retrieval, and answer generation are handled by the backend.# turium-frontend
