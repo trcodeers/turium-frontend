@@ -1,6 +1,7 @@
 
 "use client";
 
+import ReactMarkdown from "react-markdown";
 import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import {
@@ -13,6 +14,7 @@ import {
   ExternalLink,
   RefreshCw,
   Sparkles,
+  Inbox,
 } from "lucide-react";
 
 const API =
@@ -88,6 +90,23 @@ async function apiRequest<T>(
   return data as T;
 }
 
+function getSourceLabel(source: QuerySource): string {
+  if (source.source_url) {
+    try {
+      return new URL(source.source_url).hostname.replace(/^www\./, "");
+    } catch {
+      return `Webpage #${source.item_id}`;
+    }
+  }
+
+  return `Saved note #${source.item_id}`;
+}
+
+function cleanMarkdown(text: string): string {
+  // Convert escaped asterisks into Markdown formatting characters.
+  return text.replace(/\\\*/g, "*");
+}
+
 export default function Home() {
   const [items, setItems] = useState<KnowledgeItem[]>([]);
   const [sourceType, setSourceType] = useState<SourceType>("url");
@@ -110,7 +129,9 @@ export default function Home() {
       setItems(result.items ?? []);
       setError("");
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Could not load items.");
+      setError(
+        err instanceof Error ? err.message : "Could not load saved items."
+      );
     } finally {
       setLoading(false);
     }
@@ -137,13 +158,15 @@ export default function Home() {
         body: JSON.stringify(payload),
       });
 
-      setNotice(`Saved · ${result.chunks_created} chunks indexed`);
+      setNotice(`Saved successfully · ${result.chunks_created} chunks indexed`);
       setUrl("");
       setNote("");
       setAnswer(null);
       await loadItems();
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Could not save content.");
+      setError(
+        err instanceof Error ? err.message : "Could not save your content."
+      );
     } finally {
       setSaving(false);
     }
@@ -151,11 +174,13 @@ export default function Home() {
 
   async function handleAsk(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+
     if (!question.trim()) return;
 
     setAsking(true);
     setError("");
     setNotice("");
+    setAnswer(null);
 
     try {
       const result = await apiRequest<QueryResponse>("/query", {
@@ -166,31 +191,37 @@ export default function Home() {
       setAnswer(result);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Could not answer.");
-      setAnswer(null);
     } finally {
       setAsking(false);
     }
   }
 
   return (
-    <main className="page">
+    <main className="page" style={{ minHeight: "100vh" }}>
       <header className="header">
         <a className="brand" href="/">
-          <span className="brand-icon"><BookOpen size={20} /></span>
+          <span className="brand-icon">
+            <BookOpen size={20} />
+          </span>
           <span>Knowledge Inbox</span>
         </a>
+
         <button
           className="icon-button"
           type="button"
           onClick={() => void loadItems()}
           aria-label="Refresh saved items"
+          disabled={loading}
         >
-          <RefreshCw size={17} />
+          <RefreshCw size={17} className={loading ? "spin" : ""} />
         </button>
       </header>
 
       {(error || notice) && (
-        <div className={`notice ${error ? "error" : "success"}`} role="status">
+        <div
+          className={`notice ${error ? "error" : "success"}`}
+          role="status"
+        >
           <span>{error || notice}</span>
           <button
             type="button"
@@ -208,7 +239,9 @@ export default function Home() {
       <section className="capture card">
         <div className="section-title">
           <h1>Save something useful.</h1>
-          <span className="item-count">{items.length} saved</span>
+          <span className="item-count">
+            {items.length} {items.length === 1 ? "item" : "items"}
+          </span>
         </div>
 
         <div className="tabs">
@@ -217,14 +250,17 @@ export default function Home() {
             className={sourceType === "url" ? "tab active" : "tab"}
             onClick={() => setSourceType("url")}
           >
-            <Globe size={16} /> Website
+            <Globe size={16} />
+            Website
           </button>
+
           <button
             type="button"
             className={sourceType === "note" ? "tab active" : "tab"}
             onClick={() => setSourceType("note")}
           >
-            <FileText size={16} /> Note
+            <FileText size={16} />
+            Note
           </button>
         </div>
 
@@ -250,7 +286,11 @@ export default function Home() {
             />
           )}
 
-          <button className="primary-button" type="submit" disabled={saving}>
+          <button
+            className="primary-button"
+            type="submit"
+            disabled={saving || loading}
+          >
             {saving ? (
               <LoaderCircle className="spin" size={17} />
             ) : (
@@ -263,20 +303,32 @@ export default function Home() {
 
       <section className="ask card">
         <div className="section-title">
-          <h2><Sparkles size={18} /> Ask your knowledge</h2>
+          <h2>
+            <Sparkles size={18} />
+            Ask your knowledge
+          </h2>
         </div>
 
         <form onSubmit={handleAsk} className="question-form">
           <textarea
             className="field question-field"
-            placeholder="Ask a question about your saved content..."
+            placeholder={
+              items.length === 0
+                ? "Save a note or webpage, then ask a question..."
+                : "Ask a question about your saved content..."
+            }
             value={question}
             onChange={(event) => setQuestion(event.target.value)}
             rows={2}
             maxLength={5000}
             required
           />
-          <button className="primary-button ask-button" type="submit" disabled={asking}>
+
+          <button
+            className="primary-button ask-button"
+            type="submit"
+            disabled={asking || !question.trim()}
+          >
             {asking ? (
               <LoaderCircle className="spin" size={17} />
             ) : (
@@ -289,29 +341,49 @@ export default function Home() {
         {answer && (
           <div className="answer">
             <p className="answer-label">ANSWER</p>
-            <p className="answer-content">{answer.answer}</p>
+
+            <div className="markdown-answer">
+              <ReactMarkdown>{cleanMarkdown(answer.answer)}</ReactMarkdown>
+            </div>
 
             {answer.sources.length > 0 && (
               <div className="source-list">
                 <p className="answer-label">SOURCES</p>
+
                 {answer.sources.map((source, index) => (
                   <article
                     className="source"
                     key={`${source.item_id}-${source.chunk_index}`}
                   >
                     <div className="source-heading">
-                      <span>Source {index + 1} · Item {source.item_id}</span>
-                      <span>{source.similarity.toFixed(2)}</span>
+                      <span>
+                        {index + 1}. {getSourceLabel(source)}
+                      </span>
+                      <span title="Cosine similarity, not answer confidence">
+                        Similarity: {source.similarity.toFixed(2)}
+                      </span>
                     </div>
+
                     <p>{source.content}</p>
+
                     {source.source_url && (
-                      <a href={source.source_url} target="_blank" rel="noreferrer">
+                      <a
+                        href={source.source_url}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
                         Open page <ExternalLink size={13} />
                       </a>
                     )}
                   </article>
                 ))}
               </div>
+            )}
+
+            {answer.sources.length === 0 && (
+              <p className="empty-answer">
+                No relevant sources were found in your saved knowledge.
+              </p>
             )}
           </div>
         )}
@@ -320,31 +392,96 @@ export default function Home() {
       <section className="library">
         <div className="section-title">
           <h2>Saved items</h2>
+          <span className="item-count">{items.length}</span>
         </div>
 
         {loading ? (
-          <div className="empty"><LoaderCircle className="spin" size={20} /> Loading...</div>
+          <div
+            className="empty"
+            style={{
+              minHeight: 160,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 10,
+            }}
+          >
+            <LoaderCircle className="spin" size={20} />
+            Loading your library...
+          </div>
         ) : items.length === 0 ? (
-          <div className="empty">Your saved notes and webpages will appear here.</div>
+          <div
+            className="empty"
+            style={{
+              minHeight: 210,
+              padding: "32px 20px",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              textAlign: "center",
+              gap: 12,
+            }}
+          >
+            <div
+              style={{
+                width: 52,
+                height: 52,
+                borderRadius: 16,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                background: "var(--surface, #f3f4f6)",
+              }}
+            >
+              <Inbox size={25} />
+            </div>
+
+            <div>
+              <p style={{ fontWeight: 600, marginBottom: 6 }}>
+                Your library starts here
+              </p>
+              <p style={{ margin: 0, opacity: 0.7, lineHeight: 1.6 }}>
+                Save a webpage or note above. Your content will be searchable
+                here, ready for you to ask questions.
+              </p>
+            </div>
+          </div>
         ) : (
           <div className="item-list">
             {items.map((item) => (
               <article className="saved-item" key={item.id}>
                 <div className="saved-icon">
-                  {item.source_type === "url" ? <Globe size={18} /> : <FileText size={18} />}
+                  {item.source_type === "url" ? (
+                    <Globe size={18} />
+                  ) : (
+                    <FileText size={18} />
+                  )}
                 </div>
+
                 <div className="saved-content">
                   <div className="saved-meta">
-                    <span>{item.source_type === "url" ? "WEBPAGE" : "NOTE"} · #{item.id}</span>
+                    <span>
+                      {item.source_type === "url" ? "WEBPAGE" : "NOTE"} · #
+                      {item.id}
+                    </span>
+
                     <span>
                       {item.created_at
                         ? new Date(item.created_at).toLocaleDateString()
                         : ""}
                     </span>
                   </div>
+
                   <p>{item.content}</p>
+
                   {item.source_url && (
-                    <a className="saved-url" href={item.source_url} target="_blank" rel="noreferrer">
+                    <a
+                      className="saved-url"
+                      href={item.source_url}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
                       {item.source_url} <ExternalLink size={12} />
                     </a>
                   )}
