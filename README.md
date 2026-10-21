@@ -1,42 +1,106 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# AI Knowledge Inbox — Frontend
 
-## Getting Started
+A minimal web interface for saving notes and web pages, asking questions about saved knowledge, and reviewing answers with source excerpts.
 
-First, run the development server:
+## Tech Stack
+
+- Next.js
+- React
+- TypeScript
+- Tailwind CSS
+- React Markdown
+- Lucide React
+
+## Features
+
+- Switch between website and note ingestion.
+- Save content through the backend API.
+- Ask natural-language questions about saved knowledge.
+- Display generated answers with Markdown formatting.
+- Show retrieved source excerpts and similarity scores.
+- Browse previously saved knowledge items.
+- Display loading, success, error, and empty states.
+
+## Prerequisites
+
+- Node.js
+- npm
+- The AI Knowledge Inbox backend running locally
+
+## Setup
+
+Open the frontend repository root and install dependencies:
+
+```bash
+npm install
+```
+
+Create a `.env.local` file in the frontend root:
+
+```env
+NEXT_PUBLIC_API_BASE_URL=http://127.0.0.1:8000
+```
+
+This variable points the frontend to the backend API. Do not put your Gemini API key in this file.
+
+## Run the Development Server
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+http://localhost:3000
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Make sure the backend is running separately at `http://127.0.0.1:8000`.
 
-## Learn More
+## Connect to the Backend
 
-To learn more about Next.js, take a look at the following resources:
+The frontend communicates with these backend endpoints:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+| Method | Endpoint | Purpose |
+|---|---|---|
+| GET | `/health` | Check backend availability |
+| POST | `/ingest` | Save a note or ingest a URL |
+| GET | `/items` | Load saved knowledge items |
+| POST | `/query` | Ask a question and retrieve an answer |
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+The backend repository has its own setup instructions and dependencies.
 
-## Deploy on Vercel
+## Project Structure
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+The application uses the Next.js App Router and keeps the main interface in the `src/app` directory.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
-# turium-frontend
-# turium-frontend
-# turium-frontend
-# turium-frontend
-# turium-frontend
-# turium-frontend
+```text
+frontend/
+├── src/
+│   └── app/
+│       ├── page.tsx
+│       ├── layout.tsx
+│       └── globals.css
+├── public/
+├── .env.local
+├── package.json
+└── README.md
+```
+
+Your exact structure may vary depending on the options selected when creating the Next.js project.
+
+## Troubleshooting
+
+**Unable to connect to the backend:** Start the backend and verify that `NEXT_PUBLIC_API_BASE_URL` points to the correct address.
+
+**Changes to environment variables are not applied:** Restart the Next.js development server after changing `.env.local`.
+
+**CORS errors:** Ensure the backend permits requests from `http://localhost:3000`.
+
+**Markdown does not render:** Confirm that `react-markdown` is installed and used to render the answer.
+
+**No sources appear:** The backend may not have found sufficiently relevant content for the question.
+
+## Notes
+
+The frontend and backend are maintained as separate repositories. Start each application independently during local development.
+
+The frontend handles presentation and user interaction. API requests, ingestion, embedding generation, retrieval, and answer generation are handled by the backend.
